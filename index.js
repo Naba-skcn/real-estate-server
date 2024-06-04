@@ -1,15 +1,15 @@
 const { MongoClient, ServerApiVersion } = require('mongodb');
-const express = require('express')
-const cors = require('cors')
-require('dotenv').config()
-const app = express()
-const port = process.env.PORT || 5000
+const express = require('express');
+const cors = require('cors');
+require('dotenv').config();
+const app = express();
+const port = process.env.PORT || 5000;
 
-//middleware
-app.use(cors())
-app.use(express.json())
+// Middleware
+app.use(cors());
+app.use(express.json());
 
-console.log(process.env.DB_PASS)
+console.log(process.env.DB_PASS);
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.8bgsx7j.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -24,28 +24,46 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
+    // Connect the client to the server
     await client.connect();
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  } finally {
-    // Ensures that the client will close when you finish/error
-    await client.close();
+
+    const propertyCollection = client.db('estatenestDB').collection('property');
+
+    // Get properties for advertisement
+    app.get('/property', async (req, res) => {
+      const result = await propertyCollection.find().toArray();
+      res.send(result);
+    });
+
+    // This should stay open and handle requests
+    app.get('/', (req, res) => {
+      res.send('Real estate server is running');
+    });
+
+    app.listen(port, () => {
+      console.log(`Real Estate server is running on port: ${port}`);
+    });
+
+  } catch (error) {
+    console.error(error);
   }
 }
+
+// Run the function
 run().catch(console.dir);
 
+// Properly close the client on process termination
+process.on('SIGINT', async () => {
+  await client.close();
+  console.log('MongoClient disconnected on app termination');
+  process.exit(0);
+});
 
-
-
-
-
-
-app.get('/', (req,res) =>{
-    res.send('Real estate server is running')
-    })
-    
-    app.listen(port, ()=>{
-        console.log(`Real Estate server is running on port: ${port}`)
-    })
+process.on('SIGTERM', async () => {
+  await client.close();
+  console.log('MongoClient disconnected on app termination');
+  process.exit(0);
+});
