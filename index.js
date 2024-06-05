@@ -1,4 +1,4 @@
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
@@ -31,12 +31,53 @@ async function run() {
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
 
     const propertyCollection = client.db('estatenestDB').collection('property');
+    const wishlistCollection = client.db('estatenestDB').collection('wishlist');
+    const reviewCollection = client.db('estatenestDB').collection('reviews');
+    const userCollection = client.db('estatenestDB').collection('users');
 
     // Get properties for advertisement
     app.get('/property', async (req, res) => {
       const result = await propertyCollection.find().toArray();
       res.send(result);
     });
+
+    // Get details of a specific property
+    app.get('/property/:id', async (req, res) => {
+      const { id } = req.params;
+      const property = await propertyCollection.findOne({ _id: new ObjectId(id) });
+      res.send(property);
+    });
+
+    // Add property to wishlist
+    app.post('/wishlist', async (req, res) => {
+      const wishlistItem = req.body;
+      const result = await wishlistCollection.insertOne(wishlistItem);
+      res.send(result);
+    });
+
+    // Get reviews for a property
+    app.get('/property/:id/reviews', async (req, res) => {
+      const { id } = req.params;
+      const reviews = await reviewCollection.find({ propertyId: id }).toArray();
+      res.send(reviews);
+    });
+
+    // Add a review for a property
+    app.post('/property/:id/reviews', async (req, res) => {
+      const { id } = req.params;
+      const review = { ...req.body, propertyId: id };
+      const result = await reviewCollection.insertOne(review);
+      res.send(result);
+    });
+   
+
+    // Get latest reviews
+app.get('/reviews/latest', async (req, res) => {
+  const reviews = await reviewCollection.find().sort({ _id: -1 }).limit(4).toArray();
+  res.send(reviews);
+});
+
+    
 
     // This should stay open and handle requests
     app.get('/', (req, res) => {
