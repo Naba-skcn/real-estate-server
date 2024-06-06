@@ -31,8 +31,9 @@ async function run() {
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
 
     const propertyCollection = client.db('estatenestDB').collection('property');
-    const wishlistCollection = client.db('estatenestDB').collection('wishlist');
+    const wishlistCollection = client.db('estatenestDB').collection('list');
     const reviewCollection = client.db('estatenestDB').collection('reviews');
+    const offerCollection = client.db('estatenestDB').collection('offers');
     const userCollection = client.db('estatenestDB').collection('users');
 
     // Get properties for advertisement
@@ -48,12 +49,35 @@ async function run() {
       res.send(property);
     });
 
-    // Add property to wishlist
-    app.post('/wishlist', async (req, res) => {
+    
+        // Add to wishlist 
+    app.post('/list', async (req, res) => {
       const wishlistItem = req.body;
+      console.log('Adding to wishlist:', wishlistItem);
       const result = await wishlistCollection.insertOne(wishlistItem);
       res.send(result);
     });
+
+    // Get user's wishlist
+    app.get('/list/:email', async (req, res) => {
+      console.log(`Received request for wishlist of email: ${req.params.email}`);
+      try {
+        const email = req.params.email
+        const query = { userEmail : email };
+            const result = await wishlistCollection.find(query).toArray();
+            res.json(result);
+      } catch (error) {
+        console.error('Error fetching wishlist:', error);
+        res.status(500).send('Internal Server Error');
+      }
+    });
+
+    //  // Remove from wishlist
+    //  app.delete('/wishlist/:id', async (req, res) => {
+    //   const { id } = req.params;
+    //   const result = await wishlistCollection.deleteOne({ _id: new ObjectId(id) });
+    //   res.send(result);
+    // });
 
     // Get reviews for a property
     app.get('/property/:id/reviews', async (req, res) => {
@@ -75,6 +99,24 @@ async function run() {
 app.get('/reviews/latest', async (req, res) => {
   const reviews = await reviewCollection.find().sort({ _id: -1 }).limit(4).toArray();
   res.send(reviews);
+});
+
+// Make an offer
+app.post('/offers', async (req, res) => {
+  const offer = req.body;
+  const { propertyId, offerAmount } = offer;
+
+  // Fetch property to get price range
+  const property = await propertyCollection.findOne({ _id: new ObjectId(propertyId) });
+  const [minPrice, maxPrice] = property.price_range.replace(/\$/g, '').split(' - ').map(Number);
+
+  if (offerAmount < minPrice || offerAmount > maxPrice) {
+    res.status(400).send({ message: 'Offer amount must be within the price range specified by the agent.' });
+    return;
+  }
+
+  const result = await offerCollection.insertOne(offer);
+  res.send(result);
 });
 
     
