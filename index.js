@@ -36,6 +36,75 @@ async function run() {
     const offerCollection = client.db('estatenestDB').collection('offers');
     const userCollection = client.db('estatenestDB').collection('users');
 
+// save a user data in db
+app.put('/user', async (req, res) => {
+  const user = req.body
+
+  const query = { email: user?.email }
+  // check if user already exists in db
+  const isExist = await userCollection.findOne(query)
+  if (isExist) {
+    if (user.status === 'Requested') {
+      // if existing user try to change his role
+      const result = await userCollection.updateOne(query, {
+        $set: { status: user?.status },
+      })
+      return res.send(result)
+    } else {
+      // if existing user login again
+      return res.send(isExist)
+    }
+  }
+
+  // save user for the first time
+  const options = { upsert: true }
+  const updateDoc = {
+    $set: {
+      ...user,
+      timestamp: Date.now(),
+    },
+  }
+  const result = await userCollection.updateOne(query, updateDoc, options)
+  res.send(result)
+})
+
+
+ // get a user info by email from db
+ app.get('/user/:email', async (req, res) => {
+  const email = req.params.email
+  const result = await userCollection.findOne({ email })
+  res.send(result)
+})
+
+//update a user role
+app.patch('/users/update/:email', async (req, res) => {
+  const email = req.params.email
+  const user = req.body
+  const query = { email }
+  const updateDoc = {
+    $set: { ...user, timestamp: Date.now() },
+  }
+  const result = await userCollection.updateOne(query, updateDoc)
+  res.send(result)
+})
+
+// get all users data from db
+app.get('/users', async (req, res) => {
+  const result = await userCollection.find().toArray()
+  res.send(result)
+})
+
+
+// Get a specific user by email
+app.get('/users/:email', async (req, res) => {
+  const { email } = req.params;
+  const user = await userCollection.findOne({ email });
+  if (user) {
+    res.send(user);
+  } else {
+    res.status(404).send({ message: 'User not found' });
+  }
+})
     // Get properties for advertisement
     app.get('/property', async (req, res) => {
       const result = await propertyCollection.find().toArray();
@@ -60,7 +129,6 @@ async function run() {
 
     // Get user's wishlist
     app.get('/list/:email', async (req, res) => {
-      console.log(`Received request for wishlist of email: ${req.params.email}`);
       try {
         const email = req.params.email
         const query = { userEmail : email };
@@ -72,12 +140,12 @@ async function run() {
       }
     });
 
-    //  // Remove from wishlist
-    //  app.delete('/wishlist/:id', async (req, res) => {
-    //   const { id } = req.params;
-    //   const result = await wishlistCollection.deleteOne({ _id: new ObjectId(id) });
-    //   res.send(result);
-    // });
+     // Remove from wishlist
+     app.delete('/list/:id', async (req, res) => {
+      const { id } = req.params;
+      const result = await wishlistCollection.deleteOne({ _id: new ObjectId(id) });
+      res.send(result);
+    });
 
     // Get reviews for a property
     app.get('/property/:id/reviews', async (req, res) => {
