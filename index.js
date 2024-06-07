@@ -115,7 +115,7 @@ app.post('/property', async (req, res) => {
       property_location,
       description,
       price_range,
-      verification_status: 'Verified',
+      verification_status: 'Pending',
       agent_name,
       agent_email,
       property_image,
@@ -127,6 +127,18 @@ app.post('/property', async (req, res) => {
     console.error('Error adding property:', error);
     return res.status(500).json({ message: 'Failed to add property', error });
   }
+})
+
+// Get properties for a specific agent
+app.get('/property', async (req, res) => {
+  const agentEmail = req.query.agentEmail; 
+  if (!agentEmail) {
+    return res.status(400).send({ message: 'Agent email is required' });
+  }
+
+  const query = { agent_email: agentEmail };
+  const properties = await propertyCollection.find(query).toArray();
+  res.send(properties);
 })
 
     // Get properties for advertisement
