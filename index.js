@@ -105,6 +105,30 @@ app.get('/users/:email', async (req, res) => {
     res.status(404).send({ message: 'User not found' });
   }
 })
+
+// Add a property
+app.post('/property', async (req, res) => {
+  try {
+    const { property_image,  property_title, property_location, description, price_range, agent_name, agent_email, agent_image } = req.body;
+    const newProperty = {
+      property_title,
+      property_location,
+      description,
+      price_range,
+      verification_status: 'Verified',
+      agent_name,
+      agent_email,
+      property_image,
+      agent_image,
+    };
+    const result = await propertyCollection.insertOne(newProperty);
+    return res.json(result);
+  } catch (error) {
+    console.error('Error adding property:', error);
+    return res.status(500).json({ message: 'Failed to add property', error });
+  }
+})
+
     // Get properties for advertisement
     app.get('/property', async (req, res) => {
       const result = await propertyCollection.find().toArray();
