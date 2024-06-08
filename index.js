@@ -64,8 +64,10 @@ app.put('/user', async (req, res) => {
       timestamp: Date.now(),
     },
   }
+  console.log(user)
   const result = await userCollection.updateOne(query, updateDoc, options)
   res.send(result)
+  console.log(result)
 })
 
 
@@ -134,13 +136,14 @@ app.get('/property', async (req, res) => {
   const result = await propertyCollection.find().toArray();
   res.send(result);
 });
-// Get properties for advertisement
-app.get('/property', async (req, res) => {
-  const result = await propertyCollection.find().toArray();
-  res.send(result);
+// Get details of a specific property
+app.get('/property/:id', async (req, res) => {
+  const { id } = req.params;
+  const property = await propertyCollection.findOne({ _id: new ObjectId(id) });
+  res.send(property);
 });
 //get properties for a specific agent
-app.get('/property/:email', async (req, res) => {
+app.get('/property/agent/:email', async (req, res) => {
   const agentEmail = req.params.email; 
   if (!agentEmail) {
     return res.status(400).send({ message: 'Agent email is required' });
@@ -150,13 +153,14 @@ app.get('/property/:email', async (req, res) => {
   const properties = await propertyCollection.find(query).toArray();
   res.send(properties);
 });
-
-// Get details of a specific property
-app.get('/property/:id', async (req, res) => {
-  const { id } = req.params;
-  const property = await propertyCollection.findOne({ _id: new ObjectId(id) });
-  res.send(property);
+// Get properties for advertisement
+app.get('/property', async (req, res) => {
+  const result = await propertyCollection.find().toArray();
+  res.send(result);
 });
+
+
+
 
 
 // Delete a property by ID
@@ -175,7 +179,6 @@ app.delete('/property/:id', async (req, res) => {
   }
 });
 
-const { ObjectId } = require('mongodb');
 
 // Update a property by ID
 app.patch('/property/:id', async (req, res) => {
@@ -254,6 +257,30 @@ app.get('/reviews/latest', async (req, res) => {
   const reviews = await reviewCollection.find().sort({ _id: -1 }).limit(4).toArray();
   res.send(reviews);
 });
+
+// Get reviews for a specific user
+app.get('/reviews/user/:email', async (req, res) => {
+  const { email } = req.params;
+  const reviews = await reviewCollection.find({ userEmail: email }).toArray();
+  res.send(reviews);
+});
+
+// Delete a review by ID
+app.delete('/reviews/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await reviewCollection.deleteOne({ _id: new ObjectId(id) });
+    if (result.deletedCount === 1) {
+      res.send({ message: 'Review successfully deleted' });
+    } else {
+      res.status(404).send({ message: 'Review not found' });
+    }
+  } catch (error) {
+    console.error('Error deleting review:', error);
+    res.status(500).send({ message: 'Failed to delete review', error });
+  }
+});
+
 // Add offers
 app.post('/offers', async (req, res) => {
   const offer = req.body;
@@ -265,6 +292,13 @@ app.post('/offers', async (req, res) => {
       console.error('Error adding offer:', error);
       res.status(500).send({ message: 'Failed to add offer. Please try again later.' });
   }
+});
+
+//get all offers or requested property
+app.get('/offers', async (req, res) => {
+  const result = await offerCollection.find().toArray()
+  res.send(result)
+
 });
 
 // Get offers for a specific property
@@ -307,7 +341,22 @@ app.get('/buyer/offers/:email', async (req, res) => {
   res.send(offers);
 });
 
-    
+    // Reject other offers for the same property when one is accepted
+app.post('/offers/rejectOthers', async (req, res) => {
+  const { propertyId, offerId } = req.body;
+
+  try {
+    const result = await offerCollection.updateMany(
+      { propertyId: new ObjectId(propertyId), _id: { $ne: new ObjectId(offerId) } },
+      { $set: { status: 'Rejected' } }
+    );
+
+    res.send({ message: 'Other offers for the property rejected', result });
+  } catch (error) {
+    console.error('Error rejecting other offers:', error);
+    res.status(500).send({ message: 'Failed to reject other offers', error });
+  }
+});
 
     // This should stay open and handle requests
     app.get('/', (req, res) => {
