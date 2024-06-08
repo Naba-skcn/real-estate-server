@@ -129,9 +129,19 @@ app.post('/property', async (req, res) => {
   }
 })
 
-// Get properties for a specific agent
+// Get all properties
 app.get('/property', async (req, res) => {
-  const agentEmail = req.query.agentEmail; 
+  const result = await propertyCollection.find().toArray();
+  res.send(result);
+});
+// Get properties for advertisement
+app.get('/property', async (req, res) => {
+  const result = await propertyCollection.find().toArray();
+  res.send(result);
+});
+//get properties for a specific agent
+app.get('/property/:email', async (req, res) => {
+  const agentEmail = req.params.email; 
   if (!agentEmail) {
     return res.status(400).send({ message: 'Agent email is required' });
   }
@@ -139,20 +149,60 @@ app.get('/property', async (req, res) => {
   const query = { agent_email: agentEmail };
   const properties = await propertyCollection.find(query).toArray();
   res.send(properties);
-})
+});
 
-    // Get properties for advertisement
-    app.get('/property', async (req, res) => {
-      const result = await propertyCollection.find().toArray();
-      res.send(result);
-    });
+// Get details of a specific property
+app.get('/property/:id', async (req, res) => {
+  const { id } = req.params;
+  const property = await propertyCollection.findOne({ _id: new ObjectId(id) });
+  res.send(property);
+});
 
-    // Get details of a specific property
-    app.get('/property/:id', async (req, res) => {
-      const { id } = req.params;
-      const property = await propertyCollection.findOne({ _id: new ObjectId(id) });
-      res.send(property);
-    });
+
+// Delete a property by ID
+app.delete('/property/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await propertyCollection.deleteOne({ _id: new ObjectId(id) });
+    if (result.deletedCount === 1) {
+      res.send({ message: 'Property successfully deleted' });
+    } else {
+      res.status(404).send({ message: 'Property not found' });
+    }
+  } catch (error) {
+    console.error('Error deleting property:', error);
+    res.status(500).send({ message: 'Failed to delete property', error });
+  }
+});
+
+const { ObjectId } = require('mongodb');
+
+// Update a property by ID
+app.patch('/property/:id', async (req, res) => {
+  const { id } = req.params;
+
+  if (!ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Invalid property ID' });
+  }
+  const updateData = { ...req.body };
+  delete updateData._id;
+
+  try {
+    const result = await propertyCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: updateData }
+    );
+
+    if (result.modifiedCount === 1) {
+      return res.send({ message: 'Property successfully updated' });
+    } else {
+      return res.status(404).send({ message: 'Property not found' });
+    }
+  } catch (error) {
+    console.error('Error updating property:', error);
+    return res.status(500).send({ message: 'Failed to update property', error });
+  }
+});
 
     
         // Add to wishlist 
@@ -204,23 +254,57 @@ app.get('/reviews/latest', async (req, res) => {
   const reviews = await reviewCollection.find().sort({ _id: -1 }).limit(4).toArray();
   res.send(reviews);
 });
-
-// Make an offer
+// Add offers
 app.post('/offers', async (req, res) => {
   const offer = req.body;
-  const { propertyId, offerAmount } = offer;
 
-  // Fetch property to get price range
-  const property = await propertyCollection.findOne({ _id: new ObjectId(propertyId) });
-  const [minPrice, maxPrice] = property.price_range.replace(/\$/g, '').split(' - ').map(Number);
+  try {
+      const result = await offerCollection.insertOne(offer);
+      res.status(201).send(result);
+  } catch (error) {
+      console.error('Error adding offer:', error);
+      res.status(500).send({ message: 'Failed to add offer. Please try again later.' });
+  }
+});
 
-  if (offerAmount < minPrice || offerAmount > maxPrice) {
-    res.status(400).send({ message: 'Offer amount must be within the price range specified by the agent.' });
-    return;
+// Get offers for a specific property
+app.get('/offers/:propertyId', async (req, res) => {
+  const { propertyId } = req.params;
+  const offers = await offerCollection.find({ propertyId }).toArray();
+  res.send(offers);
+});
+
+// Update offer status
+app.patch('/offers/:id', async (req, res) => {
+  const { id } = req.params;
+  const updateData = req.body;
+
+  if (!ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Invalid offer ID' });
   }
 
-  const result = await offerCollection.insertOne(offer);
-  res.send(result);
+  try {
+    const result = await offerCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: updateData }
+    );
+
+    if (result.modifiedCount === 1) {
+      return res.send({ message: 'Offer successfully updated' });
+    } else {
+      return res.status(404).send({ message: 'Offer not found' });
+    }
+  } catch (error) {
+    console.error('Error updating offer:', error);
+    return res.status(500).send({ message: 'Failed to update offer', error });
+  }
+});
+
+// Get all offers for a specific buyer
+app.get('/buyer/offers/:email', async (req, res) => {
+  const { email } = req.params;
+  const offers = await offerCollection.find({ buyerEmail: email }).toArray();
+  res.send(offers);
 });
 
     
