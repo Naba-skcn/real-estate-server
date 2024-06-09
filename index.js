@@ -72,6 +72,45 @@ app.put('/user', async (req, res) => {
   res.send(result)
   console.log(result)
 })
+
+// Admin deleting a user
+app.delete('/user/:email', async (req, res) => {
+  const { email } = req.params;
+  try {
+    const result = await userCollection.deleteOne({ email });
+    if (result.deletedCount === 1) {
+      res.send({ message: 'User successfully deleted' });
+    } else {
+      res.status(404).send({ message: 'User not found' });
+    }
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).send({ message: 'Failed to delete user', error });
+  }
+});
+// Add a new endpoint to update user status
+app.patch('/users/update/:email', async (req, res) => {
+  const { email } = req.params;
+  const { role } = req.body;
+  const query = { email };
+  const updateDoc = {
+    $set: { role },
+  };
+  try {
+    const result = await userCollection.updateOne(query, updateDoc);
+    if (result.modifiedCount === 1) {
+      // Optionally, remove agent's properties from the database
+      await propertyCollection.deleteMany({ agent_email: email });
+      res.send({ message: 'User status updated successfully' });
+    } else {
+      res.status(404).send({ message: 'User not found' });
+    }
+  } catch (error) {
+    console.error('Error updating user status:', error);
+    res.status(500).send({ message: 'Failed to update user status', error });
+  }
+});
+
 //create payment
 app.post('/create-payment-intent', async (req, res) => {
   try {
@@ -174,12 +213,64 @@ app.post('/property', async (req, res) => {
     return res.status(500).json({ message: 'Failed to add property', error });
   }
 })
-
 // Get all properties
 app.get('/property', async (req, res) => {
   const result = await propertyCollection.find().toArray();
   res.send(result);
 });
+
+// Verify a property by ID
+app.patch('/property/verify/:id', async (req, res) => {
+  const { id } = req.params;
+
+  if (!ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Invalid property ID' });
+  }
+
+  try {
+    const result = await propertyCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { verification_status: 'Verified' } }
+    );
+
+    if (result.modifiedCount === 1) {
+      return res.send({ message: 'Property successfully verified' });
+    } else {
+      return res.status(404).send({ message: 'Property not found' });
+    }
+  } catch (error) {
+    console.error('Error verifying property:', error);
+    return res.status(500).send({ message: 'Failed to verify property', error });
+  }
+});
+
+// Reject a property by ID
+app.patch('/property/reject/:id', async (req, res) => {
+  const { id } = req.params;
+
+  if (!ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Invalid property ID' });
+  }
+
+  try {
+    const result = await propertyCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { verification_status: 'Rejected' } }
+    );
+
+    if (result.modifiedCount === 1) {
+      return res.send({ message: 'Property successfully rejected' });
+    } else {
+      return res.status(404).send({ message: 'Property not found' });
+    }
+  } catch (error) {
+    console.error('Error rejecting property:', error);
+    return res.status(500).send({ message: 'Failed to reject property', error });
+  }
+});
+
+
+
 // Get details of a specific property
 app.get('/property/:id', async (req, res) => {
   const { id } = req.params;
