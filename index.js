@@ -39,6 +39,7 @@ async function run() {
     const reviewCollection = client.db('estatenestDB').collection('reviews');
     const offerCollection = client.db('estatenestDB').collection('offers');
     const userCollection = client.db('estatenestDB').collection('users');
+    const advertisedCollection = client.db('estatenestDB').collection('advertise');
 
 //jwt related api
 app.post('/jwt', async(req, res)=>{
@@ -47,6 +48,36 @@ app.post('/jwt', async(req, res)=>{
     {expiresIn: '1h'});
     res.send({ token });
 })
+
+
+// Fetch all verified properties
+app.get('/property/verified', async (req, res) => {
+  try {
+      const properties = await propertyCollection.find({ verification_status: 'Verified' }).toArray();
+      res.send(properties);
+  } catch (error) {
+      console.error('Error fetching verified properties:', error);
+      res.status(500).send({ message: 'Failed to fetch verified properties' });
+  }
+});
+
+// Add this route to handle property advertisement
+app.post('/advertise', async (req, res) => {
+  try {
+      const property = req.body;
+      const result = await advertisedCollection.insertOne(property);
+      res.status(201).send({ message: 'Property advertised successfully', result });
+  } catch (error) {
+      console.error('Error advertising property:', error);
+      res.status(500).send({ message: 'Failed to advertise property', error });
+  }
+});
+
+// Get properties for advertisement
+app.get('/property/advertise', async (req, res) => {
+  const result = await advertisedCollection.find().toArray();
+  res.send(result);
+});
 
     
 // save a user data in db
@@ -298,14 +329,6 @@ app.get('/property/agent/:email', async (req, res) => {
   const properties = await propertyCollection.find(query).toArray();
   res.send(properties);
 });
-// Get properties for advertisement
-app.get('/property', async (req, res) => {
-  const result = await propertyCollection.find().toArray();
-  res.send(result);
-});
-
-
-
 
 
 // Delete a property by ID
@@ -352,7 +375,6 @@ app.patch('/property/:id', async (req, res) => {
   }
 });
 
-    
         // Add to wishlist 
     app.post('/list', async (req, res) => {
       const wishlistItem = req.body;
