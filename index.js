@@ -2,6 +2,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const express = require('express');
 require('dotenv').config();
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY)
 const bodyParser = require('body-parser');
 const app = express();
@@ -39,6 +40,15 @@ async function run() {
     const offerCollection = client.db('estatenestDB').collection('offers');
     const userCollection = client.db('estatenestDB').collection('users');
 
+//jwt related api
+app.post('/jwt', async(req, res)=>{
+  const user = req.body;
+  const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET,
+    {expiresIn: '1h'});
+    res.send({ token });
+})
+
+    
 // save a user data in db
 app.put('/user', async (req, res) => {
   const user = req.body
