@@ -387,6 +387,21 @@ app.get('/buyer/offers/:email', async (req, res) => {
   res.send(offers);
 });
 
+// sold-properties route
+app.get('/sold-properties/:email', async (req, res) => {
+    const { email } = req.params;
+    const sold = await offerCollection.find({ agentEmail: email, status: 'Bought' }).toArray();
+    res.send(sold);
+  
+});
+// Add this route to calculate the total property sold amount for a specific agent
+app.get('/total-sold-amount/:email', async (req, res) => {
+  const { email } = req.params;
+    const soldProperties = await offerCollection.find({ agentEmail: email, status: 'Bought' }).toArray();
+    const totalSoldAmount = soldProperties.reduce((total, property) => total + property.offerAmount, 0);
+    res.send({ totalSoldAmount });
+});
+
     // Reject other offers for the same property when one is accepted
 app.post('/offers/rejectOthers', async (req, res) => {
   const { propertyId, offerId } = req.body;
