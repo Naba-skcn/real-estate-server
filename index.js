@@ -214,8 +214,25 @@ app.patch('/users/update/:email', async (req, res) => {
   res.send(result)
 })
 
+//middleware for verification
+const verifyToken = (req, res, next )=>{
+  console.log('Inside verify token',req.headers.authorization)
+  if(!req.headers.authorization){
+    return res.status(401).send({message: 'forbidden access'})
+  }
+  const token = req.headers.authorization.split(' ')[1];
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) =>{
+   if(err){
+    return res.status(401).send({message: 'forbidden access'})
+   }
+   req.decoded = decoded;
+   next();
+  })
+} 
+
+
 // get all users data from db
-app.get('/users', async (req, res) => {
+app.get('/users', verifyToken, async (req, res) => {
   const result = await userCollection.find().toArray()
   res.send(result)
 })
